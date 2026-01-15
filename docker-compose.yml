@@ -30,13 +30,6 @@ x-shared:
       ELASTICSEARCH_PASS:
       ELASTICSEARCH_NAMESPACE:
       ELASTICSEARCH_REINDEX:
-      NGINX_PORT:
-      NGINX_CLIENT_MAX_BODY_SIZE:
-      NGINX_SERVER_NAME:
-      NGINX_SERVER_SCHEME:
-      RAILS_TRUSTED_PROXIES:
-      ZAMMAD_HTTP_TYPE:
-      ZAMMAD_FQDN:
       ZAMMAD_WEB_CONCURRENCY:
       ZAMMAD_PROCESS_SESSIONS_JOBS_WORKERS:
       ZAMMAD_PROCESS_SCHEDULED_JOBS_WORKERS:
@@ -93,8 +86,6 @@ services:
   zammad-nginx:
     <<: *zammad-service
     command: ["zammad-nginx"]
-    expose:
-      - "${NGINX_PORT:-8080}"
     ports:
       - "${NGINX_EXPOSE_PORT:-8080}:${NGINX_PORT:-8080}"
     depends_on:
