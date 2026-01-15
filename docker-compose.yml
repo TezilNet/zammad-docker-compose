@@ -101,8 +101,6 @@ services:
   zammad-railsserver:
     <<: *zammad-service
     command: ["zammad-railsserver"]
-    ports:
-      - "3000:3000"
 
   zammad-redis:
     image: redis:${REDIS_VERSION:-7.4.7-alpine}
