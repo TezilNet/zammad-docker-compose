@@ -60,7 +60,7 @@ x-shared:
 services:
   certiffy-zammad-backup:
     <<: *zammad-service
-    command: ["certiffy-zammad-backup"]
+    command: ["zammad-backup"]
     volumes:
       - certiffy-zammad-backup:/var/tmp/zammad
       - certiffy-zammad-storage:/opt/zammad/storage:ro
