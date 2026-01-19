@@ -91,10 +91,13 @@ services:
   zammad-nginx:
     <<: *zammad-service
     command: ["zammad-nginx"]
-    ports:
-      - "${NGINX_EXPOSE_PORT:-8080}:${NGINX_PORT:-8080}"
     depends_on:
       - zammad-railsserver
+    environment:
+      VIRTUAL_HOST: ${VIRTUAL_HOST:-support.tudominio.com}
+      VIRTUAL_PORT: 8080
+      LETSENCRYPT_HOST: ${LETSENCRYPT_HOST:-support.tudominio.com}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-support@tudominio.com}
 
   zammad-railsserver:
     <<: *zammad-service
@@ -114,6 +117,32 @@ services:
     <<: *zammad-service
     command: ["zammad-websocket"]
 
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    restart: always
+    depends_on:
+      - nginx-proxy
+    environment:
+      DEFAULT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - acme-data:/etc/acme.sh
+
 volumes:
   elasticsearch-data:
     driver: local
@@ -122,4 +151,12 @@ volumes:
   zammad-backup:
     driver: local
   zammad-storage:
+    driver: local
+  nginx-certs:
+    driver: local
+  nginx-vhost:
+    driver: local
+  nginx-html:
+    driver: local
+  acme-data:
     driver: local
