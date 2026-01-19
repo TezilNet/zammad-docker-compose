@@ -1,0 +1,124 @@
+
+
+x-shared:
+  zammad-service: &zammad-service
+    environment: &zammad-environment
+      MEMCACHE_SERVERS: ${MEMCACHE_SERVERS:-certiffy-zammad-memcached:11211}
+      POSTGRESQL_DB: ${POSTGRES_DB:-zammad_production}
+      POSTGRESQL_HOST: ${POSTGRES_HOST:-zammad-postgresql}
+      POSTGRESQL_USER: ${POSTGRES_USER:-zammad}
+      POSTGRESQL_PASS: ${POSTGRES_PASS:-zammad}
+      POSTGRESQL_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRESQL_OPTIONS: ${POSTGRESQL_OPTIONS:-?pool=50}
+      POSTGRESQL_DB_CREATE:
+      REDIS_URL: ${REDIS_URL:-redis://certiffy-zammad-redis:6379}
+      S3_URL:
+      # Backup settings
+      BACKUP_DIR: "${BACKUP_DIR:-/var/tmp/zammad}"
+      BACKUP_TIME: "${BACKUP_TIME:-03:00}"
+      HOLD_DAYS: "${HOLD_DAYS:-10}"
+      TZ: "${TZ:-America/Mexico_City}"
+      # Allow passing in these variables via .env:
+      AUTOWIZARD_JSON:
+      AUTOWIZARD_RELATIVE_PATH:
+      ELASTICSEARCH_ENABLED: "true"
+      ELASTICSEARCH_SCHEMA: http
+      ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST:-certiffy-zammad-elasticsearch}
+      ELASTICSEARCH_PORT: "9200"
+      ELASTICSEARCH_USER:
+      ELASTICSEARCH_PASS:
+      ELASTICSEARCH_NAMESPACE:
+      ELASTICSEARCH_REINDEX:
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-50M}
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+      RAILS_TRUSTED_PROXIES: ${RAILS_TRUSTED_PROXIES:-}
+      ZAMMAD_HTTP_TYPE: ${ZAMMAD_HTTP_TYPE:-http}
+      NGINX_SERVER_SCHEME: ${NGINX_SERVER_SCHEME:-http}
+      ZAMMAD_WEB_CONCURRENCY:
+      ZAMMAD_PROCESS_SESSIONS_JOBS_WORKERS:
+      ZAMMAD_PROCESS_SCHEDULED_JOBS_WORKERS:
+      ZAMMAD_PROCESS_DELAYED_JOBS_WORKERS:
+      # ZAMMAD_SESSION_JOBS_CONCURRENT is deprecated, please use ZAMMAD_PROCESS_SESSIONS_JOBS_WORKERS instead.
+      ZAMMAD_SESSION_JOBS_CONCURRENT:
+      # Variables used by ngingx-proxy container for reverse proxy creations
+      # for docs refer to https://github.com/nginx-proxy/nginx-proxy
+      VIRTUAL_HOST:
+      VIRTUAL_PORT:
+      # Variables used by acme-companion for retrieval of LetsEncrypt certificate
+      # for docs refer to https://github.com/nginx-proxy/acme-companion
+      LETSENCRYPT_HOST:
+      LETSENCRYPT_EMAIL:
+
+    image: ${IMAGE_REPO:-ghcr.io/zammad/zammad}:${VERSION:-6.5.2-67}
+    restart: ${RESTART:-always}
+    volumes:
+      - certiffy-zammad-storage:/opt/zammad/storage
+    depends_on:
+      - certiffy-zammad-memcached
+      - certiffy-zammad-redis
+
+services:
+  certiffy-zammad-backup:
+    <<: *zammad-service
+    command: ["certiffy-zammad-backup"]
+    volumes:
+      - certiffy-zammad-backup:/var/tmp/zammad
+      - certiffy-zammad-storage:/opt/zammad/storage:ro
+    user: 0:0
+
+  certiffy-zammad-elasticsearch:
+    image: elasticsearch:${ELASTICSEARCH_VERSION:-8.19.9}
+    restart: ${RESTART:-always}
+    volumes:
+      - certiffy-elasticsearch-data:/usr/share/elasticsearch/data
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: ${ELASTICSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+
+  certiffy-zammad-init:
+    <<: *zammad-service
+    command: ["zammad-init"]
+    restart: on-failure
+    user: 0:0
+
+  certiffy-zammad-memcached:
+    command: memcached -m 256M
+    image: memcached:${MEMCACHE_VERSION:-1.6.40-alpine}
+    restart: ${RESTART:-always}
+
+  certiffy-zammad-nginx:
+    <<: *zammad-service
+    command: ["zammad-nginx"]
+    ports:
+      - "${NGINX_EXPOSE_PORT:-8081}:${NGINX_PORT:-8080}"
+    depends_on:
+      - certiffy-zammad-railsserver
+
+  certiffy-zammad-railsserver:
+    <<: *zammad-service
+    command: ["zammad-railsserver"]
+
+  certiffy-zammad-redis:
+    image: redis:${REDIS_VERSION:-7.4.7-alpine}
+    restart: ${RESTART:-always}
+    volumes:
+      - certiffy-redis-data:/data
+
+  certiffy-zammad-scheduler:
+    <<: *zammad-service
+    command: ["zammad-scheduler"]
+
+  certiffy-zammad-websocket:
+    <<: *zammad-service
+    command: ["zammad-websocket"]
+
+volumes:
+  certiffy-elasticsearch-data:
+    driver: local
+  certiffy-redis-data:
+    driver: local
+  certiffy-zammad-backup:
+    driver: local
+  certiffy-zammad-storage:
+    driver: local
